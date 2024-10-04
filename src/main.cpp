@@ -1,26 +1,27 @@
 #include <Arduino.h>
+#include "sbus.h"
 #include <Arduino_LSM6DS3.h>  // Include the library for the IMU
 
+/* SBUS object, reading SBUS */
+bfs::SbusRx sbus_rx(&Serial1);
+/* SBUS object, writing SBUS */
+bfs::SbusTx sbus_tx(&Serial1);
+/* SBUS data */
+bfs::SbusData data;
+
+/* IMU angle data */
 float angleX = 0, angleY = 0, angleZ = 0;  // Estimated angles (pitch, roll, yaw)
 float alpha = 0.98;                        // Complementary filter constant
 
 unsigned long previousTime = 0;
 
-void setup() {
-  Serial.begin(9600);
-  while (!Serial);  // Wait for serial connection
-
-  // Initialize IMU
-  if (!IMU.begin()) {
-    Serial.println("Failed to initialize IMU!");
-    while (1);
-  }
-  Serial.println("IMU initialized successfully.");
-
-  previousTime = millis();
+/* Map the angle (-180 to 180 degrees) to SBUS range (172 to 1811) */
+uint16_t mapAngleToSbus(float angle) {
+  return map(angle, -180, 180, 172, 1811);  // Map angle (-180 to 180) to SBUS channel range (172 to 1811)
 }
 
-void loop() {
+/* Function to update IMU and calculate angles */
+void updateIMU() {
   float gyroX, gyroY, gyroZ;
   float accelX, accelY, accelZ;
   unsigned long currentTime = millis();
@@ -44,28 +45,59 @@ void loop() {
   // Integrate gyroscope data (rate of change of angle)
   angleX += gyroX * deltaTime;  // Update angleX (pitch)
   angleY += gyroY * deltaTime;  // Update angleY (roll)
-
-  // Correct Z-axis (yaw) drift using accelerometer
-  // If the board is approximately level, estimate yaw from accelerometer
-  if (abs(accelZ) > 0.8) {  // Check if the board is mostly level
-    float accelAngleZ = atan2(accelY, accelX) * 180 / PI;  // Approximate Z angle
-    angleZ = alpha * (angleZ + gyroZ * deltaTime) + (1.0 - alpha) * accelAngleZ;
-  } else {
-    // If not level, just use gyroscope data for yaw
-    angleZ += gyroZ * deltaTime;
-  }
+  angleZ += gyroZ * deltaTime;  // Update angleZ (yaw)
 
   // Apply complementary filter to combine accelerometer and gyroscope data for X and Y (pitch and roll)
   angleX = alpha * angleX + (1.0 - alpha) * accelAngleX;
   angleY = alpha * angleY + (1.0 - alpha) * accelAngleY;
+}
 
-  // Output the filtered angles
-  Serial.print("Angle X (Pitch): ");
-  Serial.print(angleX);
-  Serial.print(", Y (Roll): ");
-  Serial.print(angleY);
-  Serial.print(", Z (Yaw): ");
-  Serial.println(angleZ);  // Note: Z-axis has some drift compensation
+void setup() {
+  /* Serial to display data */
+  Serial.begin(115200);
+  //while (!Serial) {}
+  
+  /* Initialize SBUS communication */
+  //sbus_rx.Begin();
+  sbus_tx.Begin();
 
-  //delay(10);  // Small delay for sensor updates
+  /* Initialize IMU */
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize IMU!");
+    while (1);
+  }
+  Serial.println("IMU initialized successfully.");
+
+  previousTime = millis();
+}
+
+void loop () {
+  // Read IMU data (Gyroscope and Accelerometer)
+  updateIMU();
+
+  // Map X, Y, Z angles to SBUS channels
+  data.ch[0] = mapAngleToSbus(angleX);  // Channel 1 for X (Pitch)
+  data.ch[1] = mapAngleToSbus(angleY);  // Channel 2 for Y (Roll)
+  data.ch[2] = mapAngleToSbus(angleZ);  // Channel 3 for Z (Yaw)
+
+  /* Optionally read and forward SBUS data from receiver */
+  // if (sbus_rx.Read()) {
+  //   /* Grab the received data */
+  //   data = sbus_rx.data();
+  //   /* Display the received data */
+  //   for (int8_t i = 0; i < data.NUM_CH; i++) {
+  //     Serial.print(data.ch[i]);
+  //     Serial.print("\t");
+  //   }
+  //   /* Display lost frames and failsafe data */
+  //   Serial.print(data.lost_frame);
+  //   Serial.print("\t");
+  //   Serial.println(data.failsafe);
+  // }
+
+  /* Write the IMU data to the servos via SBUS */
+  sbus_tx.data(data); // Update SBUS data with angles
+  sbus_tx.Write();    // Write to servos
+
+  delay(10);  // Small delay for sensor updates
 }
