@@ -1,18 +1,50 @@
 #include <Arduino.h>
+/*
+  Arduino LSM6DS3 - Simple Gyroscope
 
-// put function declarations here:
-int myFunction(int, int);
+  This example reads the gyroscope values from the LSM6DS3
+  sensor and continuously prints them to the Serial Monitor
+  or Serial Plotter.
+
+  The circuit:
+  - Arduino Uno WiFi Rev 2 or Arduino Nano 33 IoT
+
+  created 10 Jul 2019
+  by Riccardo Rizzo
+
+  This example code is in the public domain.
+*/
+
+#include <Arduino_LSM6DS3.h>
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  Serial.begin(9600);
+  while (!Serial);
+
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize IMU!");
+
+    while (1);
+  }
+
+  Serial.print("Gyroscope sample rate = ");
+  Serial.print(IMU.gyroscopeSampleRate());
+  Serial.println(" Hz");
+  Serial.println();
+  Serial.println("Gyroscope in degrees/second");
+  Serial.println("X\tY\tZ");
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+  float x, y, z;
+  delay(100);
+  if (IMU.gyroscopeAvailable()) {
+    IMU.readGyroscope(x, y, z);
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    Serial.print(x);
+    Serial.print('\t');
+    Serial.print(y);
+    Serial.print('\t');
+    Serial.println(z);
+  }
 }
