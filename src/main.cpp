@@ -17,7 +17,7 @@ unsigned long previousTime = 0;
 
 /* Map the angle (-180 to 180 degrees) to SBUS range (172 to 1811) */
 uint16_t mapAngleToSbus(float angle) {
-  return map(angle, -180, 180, 172, 1811);  // Map angle (-180 to 180) to SBUS channel range (172 to 1811)
+  return map(angle, -90, 90, 172, 1811);  // Map angle (-180 to 180) to SBUS channel range (172 to 1811)
 }
 
 /* Function to update IMU and calculate angles */
