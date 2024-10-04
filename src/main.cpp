@@ -55,4 +55,17 @@ void loop() {
     angleZ += gyroZ * deltaTime;
   }
 
-  // Apply complementary filter to combine accelerometer and gyroscope data for X and Y
+  // Apply complementary filter to combine accelerometer and gyroscope data for X and Y (pitch and roll)
+  angleX = alpha * angleX + (1.0 - alpha) * accelAngleX;
+  angleY = alpha * angleY + (1.0 - alpha) * accelAngleY;
+
+  // Output the filtered angles
+  Serial.print("Angle X (Pitch): ");
+  Serial.print(angleX);
+  Serial.print(", Y (Roll): ");
+  Serial.print(angleY);
+  Serial.print(", Z (Yaw): ");
+  Serial.println(angleZ);  // Note: Z-axis has some drift compensation
+
+  //delay(10);  // Small delay for sensor updates
+}
