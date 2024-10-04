@@ -1,50 +1,56 @@
 #include <Arduino.h>
-/*
-  Arduino LSM6DS3 - Simple Gyroscope
+#include <Arduino_LSM6DS3.h>  // Include the library for the IMU
 
-  This example reads the gyroscope values from the LSM6DS3
-  sensor and continuously prints them to the Serial Monitor
-  or Serial Plotter.
+// Variables to store the estimated angles
+float angleX = 0, angleY = 0, angleZ = 0;
 
-  The circuit:
-  - Arduino Uno WiFi Rev 2 or Arduino Nano 33 IoT
-
-  created 10 Jul 2019
-  by Riccardo Rizzo
-
-  This example code is in the public domain.
-*/
-
-#include <Arduino_LSM6DS3.h>
+// Variable to store the previous time
+unsigned long previousTime = 0;
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial);
+  Serial.begin(9600);  // Start serial communication
+  while (!Serial);     // Wait for the serial port to connect
 
+  // Try to initialize the IMU
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
-
-    while (1);
+    while (1);  // Stop the program if initialization fails
   }
+  Serial.println("IMU initialized successfully.");
 
-  Serial.print("Gyroscope sample rate = ");
-  Serial.print(IMU.gyroscopeSampleRate());
-  Serial.println(" Hz");
-  Serial.println();
-  Serial.println("Gyroscope in degrees/second");
-  Serial.println("X\tY\tZ");
+  // Initialize previous time
+  previousTime = millis();
 }
 
 void loop() {
-  float x, y, z;
-  delay(100);
-  if (IMU.gyroscopeAvailable()) {
-    IMU.readGyroscope(x, y, z);
+  float gyroX, gyroY, gyroZ;  // Variables to store the gyroscope data
+  unsigned long currentTime = millis();  // Get the current time
+  float deltaTime = (currentTime - previousTime) / 1000.0;  // Calculate the time difference in seconds
+  previousTime = currentTime;
 
-    Serial.print(x);
-    Serial.print('\t');
-    Serial.print(y);
-    Serial.print('\t');
-    Serial.println(z);
+  // Check if gyroscope data is available
+  if (IMU.gyroscopeAvailable()) {
+    IMU.readGyroscope(gyroX, gyroY, gyroZ);  // Read the gyroscope data
+
+    // Integrate gyroscope data to estimate angles
+    angleX += gyroX * deltaTime;  // Angle around X-axis
+    angleY += gyroY * deltaTime;  // Angle around Y-axis
+    angleZ += gyroZ * deltaTime;  // Angle around Z-axis
+
+    unsigned long int last_millis = 0;
+    if(millis()-last_millis >= 100)
+    {
+      // Print the estimated angles to the Serial Monitor
+      Serial.print("Angle X: ");
+      Serial.print(angleX);
+      Serial.print(", Y: ");
+      Serial.print(angleY);
+      Serial.print(", Z: ");
+      Serial.println(angleZ);
+      last_millis = millis();
+    }
+    
   }
+
+  delay(10);  // Small delay to allow time for sensor data update
 }
